@@ -143,7 +143,7 @@ namespace Cthangover.ResourceAtlas
             }
 
             GameLogger.Log("RESOURCE_ATLAS", $"[TEST_RESULT] name={ResultName} passed={passed} failed={failed}");
-            GetTree().Quit(failed == 0 ? 0 : 1);
+            Cthangover.Core.Bootstrap.ApplicationExit.Quit(GetTree(), failed == 0 ? 0 : 1);
         }
     }
 }
