@@ -17,6 +17,26 @@ namespace Cthangover.ResourceAtlas
 
         public Dictionary<string, HashSet<string>> Closures { get; } = new(StringComparer.Ordinal);
 
+        /// <summary>
+        /// Integrations mounted in this set (<c>&lt;host&gt;__&lt;id&gt;</c>), with their host and partners. An integration
+        /// is never a dependency of its consumers, so <see cref="Reaches"/> counts it through them.
+        /// </summary>
+        public Dictionary<string, AtlasIntegration> Integrations { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Whether <paramref name="consumerId"/> may use <paramref name="providerId"/> as declared: the provider is in the
+        /// consumer's transitive depends, or it is a mounted integration whose host and every partner are there.
+        /// </summary>
+        public bool Reaches(string consumerId, string providerId)
+        {
+            var closure = Closures[consumerId];
+            if (closure.Contains(providerId))
+                return true;
+            return Integrations.TryGetValue(providerId, out var link)
+                && closure.Contains(link.Host)
+                && link.With.All(closure.Contains);
+        }
+
         public List<AtlasProvision> Provisions { get; } = new();
 
         /// <summary>Provisions of installed mods that are not loaded (only when the atlas runs inside a game).</summary>
@@ -25,6 +45,8 @@ namespace Cthangover.ResourceAtlas
         public List<AtlasRequest> Requests { get; } = new();
 
         public List<AtlasPatch> Patches { get; } = new();
+
+        public List<AtlasPlacement> Placements { get; } = new();
 
         public List<AtlasFinding> Findings { get; } = new();
 
@@ -42,4 +64,7 @@ namespace Cthangover.ResourceAtlas
             return LoadOrder.Where(failing.Contains).ToList();
         }
     }
+
+    /// <summary>A mounted integration: its host mod and the partners it was mounted with.</summary>
+    public sealed record AtlasIntegration(string Host, IReadOnlyList<string> With);
 }

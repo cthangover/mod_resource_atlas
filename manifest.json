@@ -6,5 +6,6 @@
   "description": "Maps which mod uses whose resources and whether every link is backed by depends — catching undeclared dependencies and duplicate providers no depends order can settle.",
   "category": "tools, debug",
   "sources": ["src/**/*.cs"],
+  "test_sources": ["tests/*.cs"],
   "depends": ["validator>=0.1"]
 }

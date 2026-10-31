@@ -94,7 +94,7 @@ namespace Cthangover.ResourceAtlas
             md.AppendLine("|---|---|---|---|---|---|");
             foreach (var link in links)
             {
-                var declared = result.Closures[link.Key.ModId].Contains(link.Key.other);
+                var declared = result.Reaches(link.Key.ModId, link.Key.other);
                 var kinds = string.Join(", ", link.Select(x => x.f.ResourceKind).Distinct());
                 var samples = string.Join(", ", link.Select(x => $"`{x.f.ResourceId}`").Distinct().Take(Samples));
                 md.AppendLine($"| `{link.Key.ModId}` | `{link.Key.other}` | {(declared ? "да" : "**нет**")} | {link.Count()} | {kinds} | {samples} |");
@@ -203,6 +203,7 @@ namespace Cthangover.ResourceAtlas
                     provisions = result.Provisions.Count,
                     requests = result.Requests.Count,
                     patches = result.Patches.Count,
+                    placements = result.Placements.Count,
                     errors = result.Errors.Count(),
                     warnings = result.Warnings.Count(),
                     failingMods = result.FailingMods(),
@@ -242,6 +243,7 @@ namespace Cthangover.ResourceAtlas
             AtlasFindingKind.UnorderedOverride => "Переопределение без порядка (победитель случаен)",
             AtlasFindingKind.UndeclaredPatch => "Патч чужого ресурса без зависимости",
             AtlasFindingKind.OutsideGame => "Ресурс есть только в модах вне игры",
+            AtlasFindingKind.ForeignPlacement => "Пакет ставит расстановки на карту чужого мода",
             _ => kind.ToString(),
         };
 

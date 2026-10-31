@@ -51,6 +51,18 @@ namespace Cthangover.ResourceAtlas
         public string ExplicitOwner { get; init; }
     }
 
+    /// <summary>One placement a mod ships on a map: the map is the prefix of the placement id (<c>&lt;map&gt;/&lt;local id&gt;</c>).</summary>
+    public sealed class AtlasPlacement
+    {
+        public string Map { get; init; }
+
+        public string PlacementId { get; init; }
+
+        public string ModId { get; init; }
+
+        public string File { get; init; }
+    }
+
     public enum AtlasSeverity
     {
         Info,
@@ -83,6 +95,12 @@ namespace Cthangover.ResourceAtlas
 
         /// <summary>A patch targets a key no other loaded mod provides.</summary>
         PatchTargetMissing,
+
+        /// <summary>
+        /// A reusable pack (<c>*_pack</c>) ships placements on a map that another
+        /// mod defines. The map's owner decides what stands on it (plan 6.4, 7).
+        /// </summary>
+        ForeignPlacement,
 
         /// <summary>
         /// Inside a game: the key is provided only by an installed mod that is

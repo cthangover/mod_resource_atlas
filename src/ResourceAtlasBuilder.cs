@@ -80,6 +80,16 @@ namespace Cthangover.ResourceAtlas
             foreach (var id in result.LoadOrder)
                 result.Closures[id] = Closure(id, result.Depends);
 
+            foreach (var host in modsInLoadOrder.OfType<ModInfo>())
+            {
+                foreach (var integration in host.Manifest?.Integrations ?? new List<ModIntegration>())
+                {
+                    var id = ModTestSuites.ModIdOf(host.Id, integration?.Id);
+                    if (result.LoadOrder.Contains(id))
+                        result.Integrations[id] = new AtlasIntegration(host.Id, (integration.With ?? new List<string>()).Select(w => w.Trim()).ToList());
+                }
+            }
+
             foreach (var declaration in graph.Declarations)
                 result.Provisions.Add(new AtlasProvision { Kind = declaration.Kind, Id = declaration.Id, ModId = declaration.ModId, File = declaration.File });
 
@@ -121,7 +131,7 @@ namespace Cthangover.ResourceAtlas
         /// </summary>
         private static void ScanMod(IModInfo mod, ResourceAtlasResult result, List<AtlasProvision> provisions, bool collectRequests)
         {
-            var provider = mod.FileProvider;
+            var provider = NestedFolders.Visible(mod);
             if (provider == null)
                 return;
 
@@ -190,7 +200,7 @@ namespace Cthangover.ResourceAtlas
                 else if (file.EndsWith(".scenario", StringComparison.OrdinalIgnoreCase))
                     ScanScenario(text, file, mod.Id, target);
                 else if (file.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-                    ScanJson(text, file, mod.Id, target);
+                    ScanJson(text, file, mod.Id, target, provisions);
                 else if (file.StartsWith("patches/scenes/", StringComparison.Ordinal) && file.EndsWith(".tscn", StringComparison.OrdinalIgnoreCase))
                     ScanScenePatch(text, file, mod.Id, target);
             }
@@ -286,7 +296,7 @@ namespace Cthangover.ResourceAtlas
             }
         }
 
-        private static void ScanJson(string text, string file, string modId, ResourceAtlasResult result)
+        private static void ScanJson(string text, string file, string modId, ResourceAtlasResult result, List<AtlasProvision> provisions)
         {
             if (file == "manifest.json" || file.StartsWith("collections/", StringComparison.Ordinal))
                 return;
@@ -307,6 +317,35 @@ namespace Cthangover.ResourceAtlas
                 if (root.ValueKind != JsonValueKind.Object)
                     return;
 
+                // Event identity includes the map, matching RpgMapEventResolver's
+                // engine patch key without taking a compile dependency on gameplay.
+                if (file.StartsWith("map_events/", StringComparison.Ordinal))
+                {
+                    var relative = file.Substring("map_events/".Length);
+                    var slash = relative.IndexOf('/');
+                    if (slash > 0 && root.TryGetProperty("Events", out var events) && events.ValueKind == JsonValueKind.Array)
+                        foreach (var entry in events.EnumerateArray())
+                        {
+                            if (entry.ValueKind != JsonValueKind.Object) continue;
+                            var id = JsonReadHelper.GetString(entry, "Id", "ID", "id");
+                            if (!string.IsNullOrWhiteSpace(id))
+                                provisions.Add(new AtlasProvision { Kind = "rpg_map_event", Id = relative.Substring(0, slash) + "/" + id, ModId = modId, File = file });
+                        }
+                }
+
+                // Maps are logical scenes of the mod that defines them; a placement's map is the prefix of its id.
+                if (file.StartsWith("maps/", StringComparison.Ordinal) && IsKind(root, "rpg_map"))
+                    foreach (var id in ItemIds(root))
+                        provisions.Add(new AtlasProvision { Kind = "rpg_map", Id = id, ModId = modId, File = file });
+
+                if (file.StartsWith("placements/", StringComparison.Ordinal) && IsKind(root, "rpg_placement"))
+                    foreach (var id in ItemIds(root))
+                    {
+                        var slash = id.IndexOf('/');
+                        if (slash > 0)
+                            result.Placements.Add(new AtlasPlacement { Map = id.Substring(0, slash), PlacementId = id, ModId = modId, File = file });
+                    }
+
                 var isPatch = file.StartsWith("patches/", StringComparison.Ordinal);
                 if (isPatch)
                 {
@@ -321,6 +360,23 @@ namespace Cthangover.ResourceAtlas
                         Kind = "entity_kind", Id = kind.GetString(), ModId = modId, File = file, Line = 0, Via = "entity_data",
                     });
                 }
+            }
+        }
+
+        private static bool IsKind(JsonElement root, string kind)
+            => root.TryGetProperty("Kind", out var value) && value.ValueKind == JsonValueKind.String
+               && string.Equals(value.GetString(), kind, StringComparison.Ordinal);
+
+        private static IEnumerable<string> ItemIds(JsonElement root)
+        {
+            if (!root.TryGetProperty("Items", out var items) || items.ValueKind != JsonValueKind.Array)
+                yield break;
+            foreach (var item in items.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object) continue;
+                var id = JsonReadHelper.GetString(item, "Id", "ID", "id");
+                if (!string.IsNullOrWhiteSpace(id))
+                    yield return id;
             }
         }
 
@@ -389,6 +445,33 @@ namespace Cthangover.ResourceAtlas
 
             foreach (var patch in result.Patches)
                 AnalyzePatch(result, patch, providers, loadIndex);
+
+            AnalyzePlacements(result, providers, loadIndex);
+        }
+
+        /// <summary>
+        /// A <c>*_pack</c> mod must not place objects on a map of another mod: the
+        /// map's owner decides what stands on it. One finding per file and map.
+        /// </summary>
+        private static void AnalyzePlacements(ResourceAtlasResult result, Dictionary<(string, string), List<string>> providers, Dictionary<string, int> loadIndex)
+        {
+            var foreign = result.Placements
+                .Where(p => loadIndex.ContainsKey(p.ModId) && p.ModId.Contains("_pack", StringComparison.Ordinal))
+                .GroupBy(p => (p.ModId, p.File, p.Map));
+            foreach (var group in foreign)
+            {
+                if (!providers.TryGetValue(("rpg_map", group.Key.Map), out var owners) || owners.Contains(group.Key.ModId))
+                    continue;
+
+                var first = group.First();
+                result.Findings.Add(new AtlasFinding
+                {
+                    Kind = AtlasFindingKind.ForeignPlacement, Severity = AtlasSeverity.Error, ModId = first.ModId,
+                    OtherMods = owners, ResourceKind = "rpg_map", ResourceId = first.Map,
+                    File = first.File, Line = 0,
+                    Message = $"пакет ставит расстановки ({group.Count()}) на карту '{first.Map}' мода {string.Join("/", owners)} — перенесите расстановки в мод карты",
+                });
+            }
         }
 
         private static void AnalyzeRequest(
@@ -437,8 +520,7 @@ namespace Cthangover.ResourceAtlas
                 return;
             }
 
-            var closure = result.Closures[request.ModId];
-            var declared = candidates.Any(closure.Contains);
+            var declared = candidates.Any(c => result.Reaches(request.ModId, c));
             result.Findings.Add(new AtlasFinding
             {
                 Kind = declared ? AtlasFindingKind.DeclaredUse : AtlasFindingKind.UndeclaredUse,
@@ -447,7 +529,7 @@ namespace Cthangover.ResourceAtlas
                 OtherMods = candidates,
                 ResourceKind = request.Kind, ResourceId = request.Id, File = request.File, Line = request.Line,
                 Message = declared
-                    ? $"использует ресурс мода {string.Join("/", candidates.Where(closure.Contains))} ({request.Via})"
+                    ? $"использует ресурс мода {string.Join("/", candidates.Where(c => result.Reaches(request.ModId, c)))} ({request.Via})"
                     : $"использует ресурс мода {string.Join("/", candidates)} ({request.Via}), но его нет в depends — добавьте зависимость или перенесите ресурс",
             });
         }
@@ -466,7 +548,7 @@ namespace Cthangover.ResourceAtlas
             {
                 var later = merges ? other : winner;
                 var earlier = merges ? winner : other;
-                var declared = result.Closures[later].Contains(earlier);
+                var declared = result.Reaches(later, earlier);
                 result.Findings.Add(new AtlasFinding
                 {
                     Kind = declared ? AtlasFindingKind.DeclaredOverride : AtlasFindingKind.UnorderedOverride,
@@ -493,7 +575,14 @@ namespace Cthangover.ResourceAtlas
             else if (patch.Id == "*")
                 owners = providers.Where(p => p.Key.Item1 == patch.Kind).SelectMany(p => p.Value).Distinct().ToList();
             else if (!providers.TryGetValue((patch.Kind, patch.Id), out owners))
-                owners = new List<string>();
+            {
+                // Entity patches find their target without regard to case, like PatchResolver
+                // and EntityResolver (patch engine v2, P11); scene files keep the path's case.
+                owners = patch.Kind == "scene_file"
+                    ? new List<string>()
+                    : providers.Where(p => p.Key.Item1 == patch.Kind && string.Equals(p.Key.Item2, patch.Id, StringComparison.OrdinalIgnoreCase))
+                        .SelectMany(p => p.Value).Distinct().ToList();
+            }
 
             owners = owners.Where(o => o != patch.ModId).ToList();
             if (owners.Count == 0)
@@ -507,8 +596,7 @@ namespace Cthangover.ResourceAtlas
                 return;
             }
 
-            var closure = result.Closures[patch.ModId];
-            var undeclared = owners.Where(o => !closure.Contains(o)).ToList();
+            var undeclared = owners.Where(o => !result.Reaches(patch.ModId, o)).ToList();
             result.Findings.Add(new AtlasFinding
             {
                 Kind = undeclared.Count == 0 ? AtlasFindingKind.DeclaredPatch : AtlasFindingKind.UndeclaredPatch,
