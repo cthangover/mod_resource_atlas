@@ -333,6 +333,21 @@ namespace Cthangover.ResourceAtlas
                         }
                 }
 
+                // Independent events are owned by their map; their persistent identity remains map/local id.
+                if (IsKind(root, "rpg_map") && root.TryGetProperty("Items", out var mapItems) && mapItems.ValueKind == JsonValueKind.Array)
+                    foreach (var mapItem in mapItems.EnumerateArray())
+                    {
+                        var mapId = JsonReadHelper.GetString(mapItem, "Id", "ID", "id");
+                        if (mapId == null || !mapItem.TryGetProperty("Events", out var mapEvents) || mapEvents.ValueKind != JsonValueKind.Array) continue;
+                        foreach (var entry in mapEvents.EnumerateArray())
+                        {
+                            if (entry.ValueKind != JsonValueKind.Object) continue;
+                            var eventId = JsonReadHelper.GetString(entry, "Id", "ID", "id");
+                            if (!string.IsNullOrWhiteSpace(eventId))
+                                provisions.Add(new AtlasProvision { Kind = "rpg_map_event", Id = mapId + "/" + eventId, ModId = modId, File = file });
+                        }
+                    }
+
                 // Maps are logical scenes of the mod that defines them; a placement's map is the prefix of its id.
                 if (file.StartsWith("maps/", StringComparison.Ordinal) && IsKind(root, "rpg_map"))
                     foreach (var id in ItemIds(root))
