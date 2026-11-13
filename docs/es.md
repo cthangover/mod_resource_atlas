@@ -28,7 +28,7 @@ El mod propio de la plantilla de novela, `my_novel_game`, no tiene imágenes suy
 | `my_novel_game` | `town_pack` | yes | 3 | background | `bar/bar`, `home/vestibule`, `town/town_entry` |
 ```
 
-Las columnas son: el mod, el mod del que toma recursos, si ese mod está en su `depends`, el número de usos, sus clases y ejemplos. La fila es correcta porque `my_novel_game` declara `town_pack>=1` en su `depends`.
+Las columnas son: el mod, el mod del que toma recursos, si ese mod está en su `depends`, el número de usos, sus clases y ejemplos. La fila es correcta porque `my_novel_game` declara `town_pack>=0.1.0` en su `depends`.
 
 Para esta página se quitó la dependencia del manifiesto durante una ejecución. El atlas falló entonces con tres errores, uno por fondo, cada uno con el archivo que lo usa:
 

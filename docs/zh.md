@@ -28,7 +28,7 @@ godot --path . -- --resource-atlas --atlas-out=res://tests/artifacts/resource_at
 | `my_novel_game` | `town_pack` | yes | 3 | background | `bar/bar`, `home/vestibule`, `town/town_entry` |
 ```
 
-各列依次是：模组本身；它从哪个模组取用资源；该模组是否在它的 `depends` 里；使用次数、种类和示例。这一行是正确的，因为 `my_novel_game` 在自己的 `depends` 中声明了 `town_pack>=1`。
+各列依次是：模组本身；它从哪个模组取用资源；该模组是否在它的 `depends` 里；使用次数、种类和示例。这一行是正确的，因为 `my_novel_game` 在自己的 `depends` 中声明了 `town_pack>=0.1.0`。
 
 为了这一页，我们在一次运行前从清单里移除了这条依赖。图谱随即报出三个错误——每个背景一条，各自指出使用它的文件：
 

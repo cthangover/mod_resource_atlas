@@ -28,7 +28,7 @@ The novel template's own mod, `my_novel_game`, has no pictures of its own: its t
 | `my_novel_game` | `town_pack` | yes | 3 | background | `bar/bar`, `home/vestibule`, `town/town_entry` |
 ```
 
-The columns are: the mod, the mod it takes resources from, whether that mod is in its `depends`, the number of uses, their kinds and examples. The row is correct because `my_novel_game` declares `town_pack>=1` in its `depends`.
+The columns are: the mod, the mod it takes resources from, whether that mod is in its `depends`, the number of uses, their kinds and examples. The row is correct because `my_novel_game` declares `town_pack>=0.1.0` in its `depends`.
 
 For this page the dependency was removed from the manifest for one run. The atlas then failed with three errors, one per background, each with the file that uses it:
 

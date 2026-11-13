@@ -28,7 +28,7 @@ godot --path . -- --resource-atlas --atlas-out=res://tests/artifacts/resource_at
 | `my_novel_game` | `town_pack` | yes | 3 | background | `bar/bar`, `home/vestibule`, `town/town_entry` |
 ```
 
-列は左から、その MOD、リソースを取る相手の MOD、相手が自分の `depends` に入っているかどうか、利用数とその種類、そして例です。この行が正しいのは、`my_novel_game` が自分の `depends` で `town_pack>=1` を宣言しているからです。
+列は左から、その MOD、リソースを取る相手の MOD、相手が自分の `depends` に入っているかどうか、利用数とその種類、そして例です。この行が正しいのは、`my_novel_game` が自分の `depends` で `town_pack>=0.1.0` を宣言しているからです。
 
 このページのため、1 回の実行でのみマニフェストからこの依存を取り除きました。するとアトラスは 3 つのエラーで失敗しました。背景ごとに 1 つずつ、それぞれ使っているファイル付きです:
 

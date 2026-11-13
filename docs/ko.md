@@ -28,7 +28,7 @@ godot --path . -- --resource-atlas --atlas-out=res://tests/artifacts/resource_at
 | `my_novel_game` | `town_pack` | yes | 3 | background | `bar/bar`, `home/vestibule`, `town/town_entry` |
 ```
 
-열은 차례대로 그 모드, 리소스를 가져오는 상대 모드, 그 모드가 자신의 `depends`에 있는지 여부, 사용 횟수와 종류, 예시입니다. 이 행이 맞는 이유는 `my_novel_game`이 자신의 `depends`에 `town_pack>=1`을 선언하기 때문입니다.
+열은 차례대로 그 모드, 리소스를 가져오는 상대 모드, 그 모드가 자신의 `depends`에 있는지 여부, 사용 횟수와 종류, 예시입니다. 이 행이 맞는 이유는 `my_novel_game`이 자신의 `depends`에 `town_pack>=0.1.0`을 선언하기 때문입니다.
 
 이 페이지를 위해 한 번의 실행에서만 매니페스트에서 이 의존성을 제거했습니다. 그러자 아틀라스는 배경마다 하나씩, 각각 사용하는 파일과 함께 세 개의 오류로 실패했습니다:
 
