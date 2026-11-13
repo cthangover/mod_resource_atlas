@@ -28,7 +28,7 @@ Mod riêng của bản mẫu tiểu thuyết, `my_novel_game`, không có hình 
 | `my_novel_game` | `town_pack` | yes | 3 | background | `bar/bar`, `home/vestibule`, `town/town_entry` |
 ```
 
-Các cột lần lượt là: mod, mod mà nó lấy tài nguyên, mod đó có nằm trong `depends` của nó không, số lần dùng, các loại và ví dụ. Dòng này đúng vì `my_novel_game` khai báo `town_pack>=1` trong `depends` của mình.
+Các cột lần lượt là: mod, mod mà nó lấy tài nguyên, mod đó có nằm trong `depends` của nó không, số lần dùng, các loại và ví dụ. Dòng này đúng vì `my_novel_game` khai báo `town_pack>=0.1.0` trong `depends` của mình.
 
 Cho trang này, người ta đã gỡ phần phụ thuộc khỏi manifest trong đúng một lần chạy. Atlas lập tức thất bại với ba lỗi — mỗi background một lỗi, kèm theo tệp đang dùng nó:
 
