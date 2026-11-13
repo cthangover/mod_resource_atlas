@@ -34,7 +34,7 @@ namespace Cthangover.ResourceAtlas
     /// </summary>
     public static class ResourceAtlasBuilder
     {
-        private static readonly Regex ResModReference = new(@"res://mods/([A-Za-z0-9_]+)/([^""'\s)\]>,;]+)", RegexOptions.Compiled);
+        private static readonly Regex ResModReference = new(@"res://(?:" + string.Join("|", ModRootFolders.Names.Select(Regex.Escape)) + @")/([A-Za-z0-9_]+)/([^""'\s)\]>,;]+)", RegexOptions.Compiled);
         private static readonly Regex ScenarioAction = new(@"^\s*action\s+([a-z_]+\.[a-z_]+)", RegexOptions.Compiled);
         private static readonly Regex CSharpActionName = new(@"Name\s*=>\s*""([a-z_]+\.[a-z_]+)""", RegexOptions.Compiled);
         private static readonly Regex GdActionName = new(@"func\s+get_name\s*\(\s*\)\s*:\s*\n\s*return\s+""([a-z_]+\.[a-z_]+)""", RegexOptions.Compiled);
@@ -430,9 +430,9 @@ namespace Cthangover.ResourceAtlas
                     target = target.Substring("res://".Length);
 
                 string owner = null;
-                if (target.StartsWith("mods/", StringComparison.Ordinal))
+                var parts = target.Split('/', 3);
+                if (parts.Length == 3 && ModRootFolders.Contains(parts[0]))
                 {
-                    var parts = target.Split('/', 3);
                     owner = parts.Length > 1 ? parts[1] : null;
                     target = parts.Length > 2 ? parts[2] : string.Empty;
                 }

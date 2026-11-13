@@ -12,6 +12,36 @@ namespace Cthangover.ResourceAtlas.Tests
     /// <summary>Map event patches must participate in the ordinary dependency audit.</summary>
     public class ResourceAtlasBuilderTests
     {
+        [ModTest("paths/every_mod_folder_keeps_reference_and_patch_owner")]
+        static void ReferencesInEveryFolder(ModTestContext ctx)
+        {
+            var root = Path.Combine(Path.GetTempPath(), "atlas_roots_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(root, "owner/scenes"));
+                Directory.CreateDirectory(Path.Combine(root, "consumer/patches/scenes"));
+                File.WriteAllText(Path.Combine(root, "owner/scenes/panel.tscn"), "[gd_scene format=3]\n[node name=\"Panel\" type=\"Control\"]");
+                foreach (var folder in ModRootFolders.Names)
+                    File.WriteAllText(Path.Combine(root, "consumer/patches/scenes/" + folder + ".tscn"),
+                        "[gd_scene format=3]\n[ext_resource type=\"PackedScene\" path=\"res://" + folder
+                        + "/owner/scenes/panel.tscn\" id=\"1_target\"]\n[node name=\"Panel\" instance=ExtResource(\"1_target\")]");
+                using var owner = new FolderModFileProvider(Path.Combine(root, "owner"), "owner");
+                using var consumer = new FolderModFileProvider(Path.Combine(root, "consumer"), "consumer");
+                var result = ResourceAtlasBuilder.Build(new IModInfo[]
+                {
+                    new ModInfo { Id = "owner", FileProvider = owner },
+                    new ModInfo { Id = "consumer", FileProvider = consumer },
+                }, new ValidationGraph());
+                ModAssert.Equal(ModRootFolders.Names.Count, result.Requests.Count(r => r.Via == "res" && r.ExplicitProvider == "owner" && r.Id == "owner/scenes/panel.tscn"), "all folders name the referenced provider");
+                ModAssert.Equal(ModRootFolders.Names.Count, result.Patches.Count(p => p.ExplicitOwner == "owner" && p.Kind == "scene_file" && p.Id == "panel.tscn"), "all folders name the patched scene owner");
+                ModAssert.False(result.Findings.Any(f => f.Kind == AtlasFindingKind.PatchTargetMissing), "both spellings find the actual target");
+            }
+            finally
+            {
+                if (Directory.Exists(root)) Directory.Delete(root, true);
+            }
+        }
+
         [ModTest("patches/map_event_owner_and_missing_dependency")]
         static void EventOwnership(ModTestContext ctx)
         {
