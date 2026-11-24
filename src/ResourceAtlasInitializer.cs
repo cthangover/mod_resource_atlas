@@ -1,10 +1,11 @@
-using System.Linq;
 using Cthangover.Core.Mods;
 using Cthangover.Core.Utils;
 using Godot;
 
 namespace Cthangover.ResourceAtlas
 {
+    using Cthangover.Core.Games;
+    using Cthangover.Core.Games.LaunchParameters;
     /// <summary>
     /// Activates the atlas only on demand: the <c>--resource-atlas</c> user
     /// arg (after <c>--</c>) queues <see cref="ResourceAtlasDriverNode"/>,
@@ -14,8 +15,7 @@ namespace Cthangover.ResourceAtlas
     /// </summary>
     public class ResourceAtlasInitializer : IModInitializer
     {
-        public const string Flag = "--resource-atlas";
-        private const string OutPrefix = "--atlas-out=";
+        public const string Flag = "--" + ResourceAtlasParameter.Name;
         private const string DefaultOut = "user://resource_atlas";
 
         private static bool queued;
@@ -27,26 +27,17 @@ namespace Cthangover.ResourceAtlas
             if (queued)
                 return;
 
-            var args = OS.GetCmdlineUserArgs();
-            if (!args.Contains(Flag))
+            var args = GameLaunchArgs.Current;
+            if (!args.Contains<ResourceAtlasParameter>())
                 return;
 
-            var output = args.FirstOrDefault(a => a.StartsWith(OutPrefix, System.StringComparison.Ordinal))?.Substring(OutPrefix.Length);
-            if (string.IsNullOrWhiteSpace(output))
-                output = DefaultOut;
+            var output = args.Get<AtlasOutputParameter>().Value ?? DefaultOut;
+            var timeout = args.Get<TimeoutParameter>().Value;
 
             queued = true;
             var directory = ProjectSettings.GlobalizePath(output);
             GameLogger.Log("RESOURCE_ATLAS", $"resource atlas requested, report directory '{directory}'");
-            ModRoot.AddDeferred(new ResourceAtlasDriverNode(directory, ParseTimeout(args)));
-        }
-
-        private static float ParseTimeout(string[] args)
-        {
-            var raw = args.FirstOrDefault(a => a.StartsWith("--timeout=", System.StringComparison.Ordinal))?.Substring("--timeout=".Length);
-            return float.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var seconds) && seconds > 0
-                ? seconds
-                : 120f;
+            ModRoot.AddDeferred(new ResourceAtlasDriverNode(directory, timeout > 0 && timeout <= float.MaxValue ? (float)timeout : 120f));
         }
     }
 }
